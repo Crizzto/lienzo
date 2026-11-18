@@ -1,0 +1,39 @@
+/* Variables del tema (Lienzo.tema.aplicar las sobrescribe con la paleta elegida). */
+:root {
+  --fondo: #141022; --fondo-rgb: 20, 16, 34;
+  --superficie: #221a36; --superficie-rgb: 34, 26, 54;
+  --texto: #f3effc; --texto-rgb: 243, 239, 252;
+  --tenue: #a69cc2; --tenue-rgb: 166, 156, 194;
+  --acento: #ff7eb6; --acento-rgb: 255, 126, 182;
+  --acento2: #8be9fd; --acento2-rgb: 139, 233, 253;
+  --fuente: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fuente-mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  --radio: 14px;
+  --opacidad: 0.55;
+  --sombra-texto: 0 2px 18px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --sombra-caja: 0 10px 40px rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+.sin-sombra { --sombra-texto: none; --sombra-caja: none; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: var(--fuente); color: var(--texto); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+svg.ic { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+svg.ic.relleno { fill: currentColor; stroke: none; }
+
+/* Superficies tipo "vidrio" (el desenfoque funciona sobre el fondo porque está en la misma página). */
+.vidrio {
+  background: rgba(var(--superficie-rgb), var(--opacidad));
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(var(--texto-rgb), 0.08);
+  box-shadow: var(--sombra-caja);
+}
+.solido { background: var(--superficie); border: 1px solid rgba(var(--texto-rgb), 0.06); box-shadow: var(--sombra-caja); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(var(--texto-rgb), 0.16); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(var(--texto-rgb), 0.28); }
+::-webkit-scrollbar-track { background: transparent; }

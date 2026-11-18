@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Burbujas (ejemplo)</title>
+<!--
+  Escena propia de ejemplo para Lienzo.
+  Copia esta carpeta, cámbiale el nombre y edita lo que quieras: es HTML, CSS y JavaScript normal.
+  Lienzo le manda a tu página estos mensajes (window.addEventListener("message", ...)):
+    {tipo: "lienzo-pausa",  pausado: true|false}   → detén tu animación cuando no se ve (ahorra batería)
+    {tipo: "lienzo-paleta", colores: {fondo, superficie, texto, tenue, acento, acento2}}
+    {tipo: "lienzo-mouse",  x: 0..1, y: 0..1}      → posición del cursor (si activas el parallax)
+  Si pones una imagen "vista.png" o "vista.jpg" en esta carpeta, se usa como miniatura en el panel.
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0b16; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  const c = document.getElementById("c"), g = c.getContext("2d");
+  let colores = { fondo: "#0d0b16", acento: "#ff7eb6", acento2: "#8be9fd" };
+  let pausado = false, raton = { x: 0.5, y: 0.5 }, ultimo = 0, id = 0;
+  const burbujas = Array.from({ length: 46 }, () => ({ x: Math.random(), y: Math.random(), r: 8 + Math.random() * 42, v: 0.01 + Math.random() * 0.03, f: Math.random() * 6.28 }));
+
+  function tamano() { c.width = innerWidth * devicePixelRatio * 0.75; c.height = innerHeight * devicePixelRatio * 0.75; }
+  addEventListener("resize", tamano);
+  tamano();
+
+  function cuadro(t) {
+    id = requestAnimationFrame(cuadro);
+    if (t - ultimo < 33) return; // ~30 FPS es suficiente
+    const dt = Math.min(0.1, (t - ultimo) / 1000); ultimo = t;
+    const W = c.width, H = c.height, k = c.width / innerWidth;
+    const fondo = g.createLinearGradient(0, 0, 0, H);
+    fondo.addColorStop(0, colores.fondo); fondo.addColorStop(1, "#000");
+    g.fillStyle = fondo; g.fillRect(0, 0, W, H);
+    burbujas.forEach((b, i) => {
+      b.y -= b.v * dt; b.f += dt;
+      if (b.y < -0.1) { b.y = 1.1; b.x = Math.random(); }
+      const x = (b.x + Math.sin(b.f) * 0.01 + (raton.x - 0.5) * 0.02 * (b.r / 50)) * W, y = b.y * H, r = b.r * k;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = (i % 2 ? colores.acento : colores.acento2) + "22"; g.fill();
+      g.lineWidth = 1.5 * k; g.strokeStyle = (i % 2 ? colores.acento : colores.acento2) + "88"; g.stroke();
+    });
+  }
+  id = requestAnimationFrame(cuadro);
+
+  addEventListener("message", (e) => {
+    const m = e.data || {};
+    if (m.tipo === "lienzo-pausa") {
+      pausado = m.pausado;
+      if (pausado) cancelAnimationFrame(id); else { ultimo = 0; id = requestAnimationFrame(cuadro); }
+    }
+    if (m.tipo === "lienzo-paleta" && m.colores) colores = Object.assign(colores, m.colores);
+    if (m.tipo === "lienzo-mouse") raton = { x: m.x, y: m.y };
+  });
+</script>
+</body>
+</html>

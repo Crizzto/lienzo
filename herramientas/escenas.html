@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Banco de pruebas de escenas</title>
+<!-- Uso: escenas.html?e=<id>[&calidad=0.75][&fps=30][&mx=0.3&my=0.6]
+     Para capturar sin ventana:
+     chrome --headless=new --enable-unsafe-swiftshader --screenshot=salida.png --window-size=1280,720 --virtual-time-budget=4000 "file:///.../herramientas/escenas.html?e=cielo-lofi" -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font: 14px "Segoe UI", sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #info { position: fixed; left: 8px; bottom: 8px; background: rgba(0,0,0,.55); padding: 4px 8px; border-radius: 6px; }
+  ul { position: relative; z-index: 1; }
+  a { color: #8be9fd; }
+</style>
+</head>
+<body>
+<canvas id="lienzo"></canvas>
+<div id="info"></div>
+<script src="../web/comun/escenas.js"></script>
+<script src="../web/escenas/indice.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const ids = window.Lienzo.listaEscenas || [];
+  let pendientes = ids.length;
+  const info = document.getElementById("info");
+  function arrancar() {
+    const id = q.get("e");
+    if (!id) {
+      document.body.insertAdjacentHTML("beforeend", "<ul>" + ids.map(i => `<li><a href="?e=${i}">${i}</a></li>`).join("") + "</ul>");
+      return;
+    }
+    const def = Lienzo.escenas[id];
+    if (!def) { info.textContent = "No existe la escena " + id; return; }
+    const opciones = {};
+    for (const [k, v] of q) if (k.startsWith("o.")) opciones[k.slice(2)] = isNaN(v) ? (v === "true" ? true : v === "false" ? false : v) : Number(v);
+    const motor = new Lienzo.MotorEscena(document.getElementById("lienzo"), def, opciones, {
+      fps: Number(q.get("fps") || 30), calidad: Number(q.get("calidad") || 0.75),
+    });
+    if (q.get("mx")) motor.ponerMouse(Number(q.get("mx")), Number(q.get("my") || 0.5));
+    let cuadros = 0, t0 = performance.now();
+    const medir = motor.inst.cuadro;
+    motor.inst.cuadro = (t, dt) => { cuadros++; const a = performance.now(); medir(t, dt); medirMs += performance.now() - a; };
+    let medirMs = 0;
+    setInterval(() => {
+      const seg = (performance.now() - t0) / 1000;
+      info.textContent = `${def.nombre} · ${(cuadros / seg).toFixed(1)} fps · ${(medirMs / Math.max(1, cuadros)).toFixed(2)} ms/cuadro`;
+      cuadros = 0; medirMs = 0; t0 = performance.now();
+    }, 1000);
+    window.motor = motor;
+  }
+  if (!pendientes) arrancar();
+  ids.forEach((id) => {
+    const s = document.createElement("script");
+    s.src = `../web/escenas/${id}.js`;
+    s.onload = s.onerror = () => { if (--pendientes === 0) arrancar(); };
+    document.head.appendChild(s);
+  });
+</script>
+</body>
+</html>

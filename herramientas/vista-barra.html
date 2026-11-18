@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vista previa: escritorio + barra</title>
+<!-- Abre con el servidor de diseño: http://localhost:5178/../herramientas no existe, así que se sirve copiándolo a web/
+     o usando: node herramientas/servidor.js y abriendo http://localhost:5178/vista-barra.html?pos=arriba&grosor=38&margen=8 -->
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  iframe { position: absolute; border: 0; }
+  #fondo { inset: 0; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<iframe id="fondo" src="escritorio.html"></iframe>
+<iframe id="barra" src="barra.html" allowtransparency="true"></iframe>
+<script>
+  const q = new URLSearchParams(location.search);
+  const pos = q.get("pos") || "arriba", g = Number(q.get("grosor") || 38), m = Number(q.get("margen") ?? 8);
+  const b = document.getElementById("barra");
+  const v = pos === "izquierda" || pos === "derecha";
+  Object.assign(b.style, v
+    ? { top: m + "px", bottom: m + "px", height: `calc(100% - ${2 * m}px)`, width: g + "px", [pos === "izquierda" ? "left" : "right"]: m + "px" }
+    : { left: m + "px", width: `calc(100% - ${2 * m}px)`, height: g + "px", [pos === "arriba" ? "top" : "bottom"]: m + "px" });
+  const rice = q.get("rice");
+  if (rice) { document.getElementById("fondo").src = "escritorio.html?rice=" + rice; b.src = "barra.html?rice=" + rice; }
+</script>
+</body>
+</html>

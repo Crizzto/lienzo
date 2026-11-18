@@ -1,0 +1,13 @@
+# Salida de compilación y binarios
+dist/
+
+# Descargas automáticas del SDK y herramientas temporales
+vendor/
+
+# Configuraciones locales y asistentes
+.claude/
+.vs/
+.vscode/
+
+# Registros
+*.log

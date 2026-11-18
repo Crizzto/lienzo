@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "rice": "noche-lofi",
+  "fondo": {
+    "activo": true,
+    "tipo": "escena",
+    "escena": "cielo-lofi",
+    "opciones": {},
+    "archivo": "",
+    "carpeta": "",
+    "ajuste": "cubrir",
+    "velocidad": 1,
+    "color": "#14111f",
+    "efectos": { "oscurecer": 0, "desenfoque": 0, "saturacion": 100, "brillo": 100, "vineta": 20, "grano": 0, "parallax": 0 }
+  },
+  "paleta": {
+    "modo": "auto",
+    "colores": { "fondo": "#141022", "superficie": "#221a36", "texto": "#f3effc", "tenue": "#a69cc2", "acento": "#ff7eb6", "acento2": "#8be9fd" }
+  },
+  "estilo": { "fuente": "Segoe UI Variable Display", "fuenteMono": "Cascadia Mono", "redondeo": 14, "opacidad": 0.55, "sombra": true },
+  "barra": {
+    "activa": true,
+    "posicion": "arriba",
+    "estilo": "islas",
+    "flotante": true,
+    "grosor": 38,
+    "margen": 8,
+    "redondeo": 14,
+    "fondo": "acrilico",
+    "opacidad": 0.55,
+    "iconoInicio": "luna",
+    "textoInicio": "",
+    "titulos": "activa",
+    "modulos": {
+      "inicio": ["inicio", "apps"],
+      "centro": ["reloj"],
+      "fin": ["musica", "sistema", "volumen", "bateria", "red", "bandeja", "lienzo"]
+    },
+    "reloj": { "formato24": false, "segundos": false, "fecha": true }
+  },
+  "barraWindows": { "modo": "auto", "alineacion": "no-tocar", "busqueda": "no-tocar", "vistaTareas": "no-tocar", "widgets": "no-tocar", "agrupar": "no-tocar", "esquina": "no-tocar" },
+  "bloques": [
+    { "id": "saludo-1", "tipo": "saludo", "x": 0.765, "y": 0.07, "escala": 1, "opciones": {} },
+    { "id": "reloj-1", "tipo": "reloj", "x": 0.765, "y": 0.13, "escala": 1, "opciones": { "estilo": "grande" } },
+    { "id": "musica-1", "tipo": "musica", "x": 0.765, "y": 0.74, "escala": 1, "opciones": { "estilo": "tarjeta" } }
+  ],
+  "escritorio": { "iconos": true, "tamanoIconos": 0 },
+  "windows": { "tema": "no-tocar", "transparencia": "no-tocar", "acento": "no-tocar", "colorAcento": "#ff7eb6", "colorEnBarra": "no-tocar", "colorEnTitulos": "no-tocar" },
+  "rendimiento": {
+    "fps": 24,
+    "calidad": 0.75,
+    "pausarMaximizada": true,
+    "pausarPantallaCompleta": true,
+    "bateria": "reducir",
+    "soloPrincipal": false,
+    "suspender": false
+  },
+  "general": { "iniciarConWindows": false, "nombre": "" },
+  "fijadas": [],
+  "biblioteca": [],
+  "misRices": []
+}

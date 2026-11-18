@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Lienzo · Escritorio</title>
+<link rel="stylesheet" href="comun/tema.css">
+<link rel="stylesheet" href="escritorio.css">
+</head>
+<body>
+<div id="capa-fondo"></div>
+<div id="capa-efectos"><div class="oscurecer"></div><div class="vineta"></div><div class="grano"></div></div>
+<div id="capa-bloques"></div>
+
+<!-- Modo edición (solo con ?editar=1) -->
+<div id="editor" hidden>
+  <div class="guia guia-v" hidden></div>
+  <div class="guia guia-h" hidden></div>
+  <header class="barra-edicion">
+    <span class="marca"></span>
+    <span class="titulo">Editar el escritorio</span>
+    <span class="ayuda">Arrastra los bloques · esquina para cambiar el tamaño · Supr para quitar</span>
+    <button class="btn" data-accion="anadir"></button>
+    <button class="btn" data-accion="deshacer" title="Deshacer (Ctrl+Z)"></button>
+    <button class="btn" data-accion="cancelar">Cancelar</button>
+    <button class="btn principal" data-accion="listo"></button>
+  </header>
+  <aside class="inspector" hidden></aside>
+  <div class="catalogo" hidden>
+    <div class="catalogo-caja">
+      <h2>Añadir un bloque</h2>
+      <div class="catalogo-lista"></div>
+      <section class="catalogo-apps">
+        <h3>Widgets de tus apps</h3>
+        <p class="nota">Spotify, WhatsApp y el clima tienen un widget especial; las demás apps, un acceso con su icono. En el escritorio se tocan con un clic.</p>
+        <input type="search" class="buscar-app" placeholder="Buscar entre tus apps…">
+        <div class="apps-rejilla"></div>
+      </section>
+      <button class="btn" data-accion="cerrar-catalogo">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="comun/puente.js"></script>
+<script src="comun/tema.js"></script>
+<script src="comun/iconos.js"></script>
+<script src="comun/escenas.js"></script>
+<script src="comun/rices.js"></script>
+<script src="escenas/indice.js"></script>
+<script src="bloques/motor.js"></script>
+<script src="bloques/indice.js"></script>
+<script src="escritorio.js"></script>
+</body>
+</html>
