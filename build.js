@@ -2,6 +2,8 @@
 //   node build.js             → dist/Lienzo.exe (+ DLLs de WebView2 y la carpeta web/)
 //   node build.js --correr    → cierra Lienzo si está abierto, compila y lo vuelve a abrir
 //   node build.js --solo-web  → solo copia web/ a dist/ (para probar cambios de HTML/CSS/JS sin recompilar)
+//   node build.js --instalador → además arma publicar/Lienzo-Instalador-<versión>.exe (un solo archivo para subir a GitHub)
+//   node build.js --solo-instalador → rearma solo el instalador con lo que ya está en dist/
 "use strict";
 const fs = require("fs"), path = require("path"), https = require("https");
 const { execFileSync, spawn, spawnSync } = require("child_process");
@@ -14,6 +16,21 @@ const CSC = path.join(FW, "csc.exe");
 const WINMD = "C:\\Windows\\System32\\WinMetadata";
 const args = process.argv.slice(2);
 const exe = path.join(dist, "Lienzo.exe");
+const publicar = path.join(dir, "publicar");
+
+// La versión vive en un solo lugar: src/Ensamblado.cs (AssemblyInformationalVersion).
+function version() {
+  const m = /AssemblyInformationalVersion\("([^"]+)"\)/.exec(fs.readFileSync(path.join(dir, "src", "Ensamblado.cs"), "utf8"));
+  return m ? m[1] : "0.0.0";
+}
+
+// Dirección del repositorio para «Aplicaciones instaladas» (en GitHub Actions viene en GITHUB_REPOSITORY).
+function repositorio() {
+  if (process.env.GITHUB_REPOSITORY) return "https://github.com/" + process.env.GITHUB_REPOSITORY;
+  const r = spawnSync("git", ["remote", "get-url", "origin"], { cwd: dir, encoding: "utf8" });
+  const url = (r.stdout || "").trim().replace(/\.git$/, "");
+  return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(url) ? url : "";
+}
 
 function descargar(url, destino) {
   return new Promise((ok, mal) => {
@@ -82,9 +99,51 @@ function cerrarSiAbierto() {
   spawnSync(exe, ["--salir"], { timeout: 15000 });
 }
 
+// Instalador: un .exe que lleva dentro dist/ comprimido (instalador/Instalador.cs lo descomprime al instalar).
+function instalador() {
+  const v = version();
+  const tmp = path.join(dir, "vendor", "instalador");
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp, { recursive: true });
+  fs.mkdirSync(publicar, { recursive: true });
+
+  // El tar.exe de Windows (bsdtar) sabe hacer .zip; el de Git Bash no.
+  const tar = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
+  const zip = path.join(tmp, "lienzo.zip");
+  const archivos = ["Lienzo.exe", "Microsoft.Web.WebView2.Core.dll", "WebView2Loader.dll", "restaurar.cmd", "web"];
+  execFileSync(tar, ["-a", "-c", "-f", zip, "-C", dist, ...archivos], { stdio: "inherit" });
+
+  const num = (v.match(/\d+/g) || []).concat(["0", "0", "0", "0"]).slice(0, 4).join(".");
+  const info = path.join(tmp, "InfoVersion.cs");
+  fs.writeFileSync(info, [
+    "using System.Reflection;",
+    '[assembly: AssemblyTitle("Instalador de Lienzo")]',
+    '[assembly: AssemblyDescription("Instala Lienzo: fondos animados, barra propia y bloques para Windows 11.")]',
+    '[assembly: AssemblyCompany("Lienzo")]',
+    '[assembly: AssemblyProduct("Lienzo")]',
+    '[assembly: AssemblyCopyright("Lienzo")]',
+    `[assembly: AssemblyVersion("${num}")]`,
+    `[assembly: AssemblyFileVersion("${num}")]`,
+    `[assembly: AssemblyInformationalVersion("${v}")]`,
+    "namespace Lienzo.Instalacion {",
+    `  internal static class InfoVersion { public const string Texto = "${v}"; public const string Repositorio = "${repositorio()}"; }`,
+    "}",
+  ].join("\r\n"));
+
+  const salida = path.join(publicar, `Lienzo-Instalador-${v}.exe`);
+  csc(salida, [path.join(dir, "instalador", "Instalador.cs"), path.join(dir, "src", "Marca.cs"), info],
+    ["System.dll", "System.Core.dll", "System.Drawing.dll", "System.Windows.Forms.dll", "Microsoft.CSharp.dll",
+      "System.IO.Compression.dll", "System.IO.Compression.FileSystem.dll"],
+    [`/win32manifest:${path.join(dir, "app.manifest")}`, `/win32icon:${path.join(dir, "recursos", "lienzo.ico")}`, `/resource:${zip},lienzo.zip`]);
+  const mb = (fs.statSync(salida).size / 1048576).toFixed(1);
+  console.log(`Instalador: publicar\\${path.basename(salida)} (${mb} MB)`);
+}
+
 async function principal() {
   fs.mkdirSync(dist, { recursive: true });
   if (args.includes("--solo-web")) { copiarWeb(); console.log("web/ copiada a dist/"); return; }
+  // Rearma solo el instalador con lo que ya hay en dist/ (sin cerrar Lienzo ni recompilarlo).
+  if (args.includes("--solo-instalador")) { icono(); instalador(); return; }
 
   const sdk = await sdkWebView2();
   const ico = icono();
@@ -109,9 +168,10 @@ async function principal() {
   copiarWeb();
   const kb = (fs.statSync(exe).size / 1024).toFixed(0);
   console.log(`Listo: dist\\Lienzo.exe (${kb} KB)`);
+  if (args.includes("--instalador")) instalador();
 
   if (args.includes("--correr")) {
-    const extra = args.filter((a) => a !== "--correr");
+    const extra = args.filter((a) => a !== "--correr" && a !== "--instalador");
     spawn(exe, extra, { detached: true, stdio: "ignore" }).unref();
     console.log("Lienzo abierto.");
   }

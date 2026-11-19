@@ -88,8 +88,8 @@ namespace Lienzo
             appBarRegistrada = false;
             await Task.Delay(1500);
             if (Saliendo) return;
-            if (Barra != null) { RegistrarAppBar(); PosicionarBarra(); }
-            BarraWindows.Aplicar(Cfg("barraWindows.modo", "auto"));
+            if (Barra != null) { if (ReservarEspacio()) RegistrarAppBar(); PosicionarBarra(); }
+            BarraWindows.Aplicar(ModoBarraWindows());
             if (Mensajes != null) Nativo.RegisterShellHookWindow(Mensajes.Handle);
             Escritorio.Preparar();
             await CrearFondos();
@@ -259,15 +259,23 @@ namespace Lienzo
             {
                 if (Cambio(anterior, "barra.posicion") || Cambio(anterior, "barra.grosor") || Cambio(anterior, "barra.flotante") || Cambio(anterior, "barra.margen"))
                     PosicionarBarra();
+                if (Cambio(anterior, "barra.autoOcultar")) { condicionEsconder = false; PosicionarBarra(); IniciarAutoOcultar(); }
                 if (Cambio(anterior, "barra") || Cambio(anterior, "paleta")) AplicarEstiloBarra();
             }
             AplicarAjustesWindows(anterior);
         }
 
+        /// <summary>Ocultar la barra de Windows solo si la de Lienzo está encendida: nunca quedarse sin ninguna barra.</summary>
+        private string ModoBarraWindows()
+        {
+            string m = Cfg("barraWindows.modo", "oculta");
+            return m == "oculta" && !CfgBool("barra.activa", true) ? "auto" : m;
+        }
+
         /// <summary>Ajustes que tocan Windows. Con anterior = null se aplica solo lo que no es "no tocar".</summary>
         private void AplicarAjustesWindows(Dictionary<string, object> anterior)
         {
-            if (Cambio(anterior, "barraWindows.modo")) BarraWindows.Aplicar(Cfg("barraWindows.modo", "auto"));
+            if (Cambio(anterior, "barraWindows.modo") || Cambio(anterior, "barra.activa")) BarraWindows.Aplicar(ModoBarraWindows());
             if (Cambio(anterior, "barraWindows.alineacion")) Aspecto.AlinearBarraWindows(Cfg("barraWindows.alineacion", "no-tocar"));
             if (Cambio(anterior, "escritorio.iconos"))
             {

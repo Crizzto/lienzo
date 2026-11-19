@@ -1,0 +1,39 @@
+# Arma el instalador y lo sube a GitHub Releases cuando subes una etiqueta de versión:
+#   1. Cambia la versión en src/Ensamblado.cs (AssemblyInformationalVersion, p. ej. "1.1.0").
+#   2. git commit -am "Lienzo 1.1.0" && git tag v1.1.0 && git push && git push --tags
+# También se puede lanzar a mano desde la pestaña Actions (solo deja el instalador como artefacto).
+name: Publicar instalador
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Compilar Lienzo y el instalador
+        run: node build.js --instalador
+
+      - name: Guardar el instalador como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lienzo-Instalador
+          path: publicar/*.exe
+
+      - name: Crear la versión en GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publicar/*.exe
+          generate_release_notes: true

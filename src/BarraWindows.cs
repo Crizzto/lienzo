@@ -14,6 +14,9 @@ namespace Lienzo
     {
         private static bool oculta, cambiamosAuto, autoOriginal;
         private static DateTime pausaVigilancia = DateTime.MinValue;
+        private static IntPtr gancho;
+        private static uint pidGancho;
+        private static Nativo.WinEventProc alEvento; // referencia viva: si el recolector se lo lleva, Windows llamaría a la nada
 
         private static string RutaEstado
         {
@@ -68,6 +71,7 @@ namespace Lienzo
                 {
                     oculta = true;
                     foreach (var h in Ventanas()) Nativo.ShowWindow(h, Nativo.SW_HIDE);
+                    Enganchar();
                 }
                 else Mostrar();
             }
@@ -82,13 +86,45 @@ namespace Lienzo
         private static void Mostrar()
         {
             oculta = false;
+            Desenganchar();
             foreach (var h in Ventanas()) if (!Nativo.IsWindowVisible(h)) Nativo.ShowWindow(h, Nativo.SW_SHOWNA);
+        }
+
+        /// <summary>
+        /// Oculta "de verdad": Windows vuelve a mostrar su barra con la tecla Win, Win+T, Win+número, notificaciones…
+        /// Un gancho de eventos (sin inyectar nada en Explorer) avisa en cuanto una de sus barras se muestra y se vuelve
+        /// a esconder al instante, sin que llegue a verse. Vigilar() queda de respaldo cada segundo.
+        /// </summary>
+        private static void Enganchar()
+        {
+            uint pid;
+            Nativo.GetWindowThreadProcessId(Principal, out pid);
+            if (pid == 0 || (gancho != IntPtr.Zero && pid == pidGancho)) return;
+            Desenganchar();
+            if (alEvento == null) alEvento = AlMostrarseAlgo;
+            gancho = Nativo.SetWinEventHook(Nativo.EVENT_OBJECT_SHOW, Nativo.EVENT_OBJECT_SHOW, IntPtr.Zero, alEvento, pid, 0, Nativo.WINEVENT_OUTOFCONTEXT);
+            pidGancho = gancho != IntPtr.Zero ? pid : 0;
+        }
+
+        private static void Desenganchar()
+        {
+            if (gancho != IntPtr.Zero) Nativo.UnhookWinEvent(gancho);
+            gancho = IntPtr.Zero;
+            pidGancho = 0;
+        }
+
+        private static void AlMostrarseAlgo(IntPtr g, uint evento, IntPtr h, int objeto, int hijo, uint hilo, uint tiempo)
+        {
+            if (objeto != 0 /* OBJID_WINDOW */ || !oculta || DateTime.Now < pausaVigilancia) return;
+            string clase = Nativo.Clase(h);
+            if (clase == "Shell_TrayWnd" || clase == "Shell_SecondaryTrayWnd") Nativo.ShowWindow(h, Nativo.SW_HIDE);
         }
 
         /// <summary>Windows a veces vuelve a mostrar su barra (al abrir Inicio, al reiniciar Explorer): se vuelve a ocultar.</summary>
         public static void Vigilar()
         {
             if (!oculta || DateTime.Now < pausaVigilancia) return;
+            Enganchar(); // si Explorer se reinició, el gancho viejo ya no sirve
             foreach (var h in Ventanas()) if (Nativo.IsWindowVisible(h)) Nativo.ShowWindow(h, Nativo.SW_HIDE);
         }
 

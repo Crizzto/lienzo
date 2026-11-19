@@ -1,6 +1,12 @@
 html, body { height: 100%; overflow: hidden; background: transparent; user-select: none; }
 body { --grosor: 38px; --radio-barra: 14px; --opacidad-barra: .55; font-size: calc(var(--grosor) * .35); cursor: default; }
 
+#barra { transition: transform .18s cubic-bezier(.2, .8, .2, 1), opacity .18s; }
+html.escondida #barra { opacity: 0; transition-timing-function: ease-in; }
+html.escondida body.pos-arriba #barra { transform: translateY(-110%); }
+html.escondida body.pos-abajo #barra { transform: translateY(110%); }
+html.escondida body.pos-izquierda #barra { transform: translateX(-110%); }
+html.escondida body.pos-derecha #barra { transform: translateX(110%); }
 #barra { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
 .seccion { display: flex; align-items: center; height: 100%; min-width: 0; }
 .seccion.inicio { justify-content: flex-start; }

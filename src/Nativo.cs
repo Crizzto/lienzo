@@ -90,6 +90,19 @@ namespace Lienzo
         [StructLayout(LayoutKind.Sequential)]
         public struct SIZE { public int cx, cy; public SIZE(int x, int y) { cx = x; cy = y; } }
 
+        // ----- Cursor y eventos de ventanas (auto-ocultar la barra, vigilar la de Windows) -----
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CURSORINFO { public int cbSize; public int flags; public IntPtr hCursor; public POINT pt; }
+        public const int CURSOR_SHOWING = 1;
+        [DllImport("user32.dll")] public static extern bool GetCursorInfo(ref CURSORINFO ci);
+        [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vk);
+
+        public delegate void WinEventProc(IntPtr gancho, uint evento, IntPtr hWnd, int objeto, int hijo, uint hilo, uint tiempo);
+        public const uint EVENT_OBJECT_SHOW = 0x8002, WINEVENT_OUTOFCONTEXT = 0, WINEVENT_SKIPOWNPROCESS = 2;
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr modulo, WinEventProc cb, uint pid, uint hilo, uint flags);
+        [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr gancho);
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct MONITORINFOEX
         {

@@ -1,5 +1,6 @@
 # Salida de compilación y binarios
 dist/
+publicar/
 
 # Descargas automáticas del SDK y herramientas temporales
 vendor/

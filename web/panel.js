@@ -51,7 +51,6 @@
     ["desktophut", "DesktopHut", "video", "Fondos animados en alta calidad, de todo tipo.", "rain, space, anime, nature…"],
     ["moewalls", "MoeWalls", "video", "Muchísimos fondos animados de anime y videojuegos (calidad 720p).", "genshin, rain, night, cat…"],
     ["youtube", "YouTube", "yt", "Busca videos de fondos (live wallpaper, loops, lo-fi…) y quita Shorts y videos que no parecen fondos. También puedes pegar un enlace.", "anime rain, lofi room… o pega un enlace"],
-    ["tiktok", "TikTok", "yt", "Pega el enlace de un TikTok (Compartir → Copiar enlace) o busca un hashtag. Ojo: casi todos son verticales.", "pega un enlace o escribe un hashtag"],
   ];
   const ORDENES_LINEA = {
     wikimedia: [["", "Más relevantes"], ["azar", "Al azar"], ["recientes", "Recientes"]],
@@ -62,7 +61,6 @@
   function buscarLinea(mas) {
     const f = FUENTES_LINEA.find((x) => x[0] === linea.fuente);
     if (f && f[2] === "yt" && !linea.ytdlp) { pintar(); return; } // primero hay que descargar yt-dlp
-    if (linea.fuente === "tiktok" && !linea.q) { linea.resultados = []; linea.pagina = 0; linea.error = ""; pintar(); return; }
     if (!mas) { linea.pagina = 0; linea.resultados = []; linea.semilla = ""; }
     linea.cargando = true;
     linea.error = "";
@@ -462,8 +460,6 @@
         ${linea.fuente === "wallhaven" ? `<select id="cat-linea">${[["110", "General y anime"], ["100", "Solo general"], ["010", "Solo anime"], ["111", "Todo"]].map(([k, t]) =>
           `<option value="${k}" ${k === linea.categoria ? "selected" : ""}>${t}</option>`).join("")}</select>` : ""}
         <button class="btn principal" data-accion="buscar-linea">${I("buscar")} Buscar</button></div>`;
-    const vacio = linea.fuente === "tiktok" && !linea.q && !linea.resultados.length
-      ? `<div class="vacio">Pega arriba el enlace de un TikTok y pulsa Buscar.</div>` : "";
     const lista = linea.resultados.map((r, i) => {
       const bajando = linea.bajando === r.id;
       return `<button class="carta${bajando ? " cargando" : ""}" data-accion="bajar-fondo" data-i="${i}" ${linea.bajando ? "disabled" : ""}>
@@ -472,7 +468,7 @@
         ${r.video ? `<span class="marca-video">${I("play")}</span>` : ""}</div>
         <div class="info"><b>${esc(r.nombre)}</b><span>${esc(r.credito || "")}</span></div></button>`;
     }).join("");
-    let estadoLinea = vacio;
+    let estadoLinea = "";
     if (linea.error) estadoLinea = `<div class="vacio">${esc(linea.error)}</div>`;
     else if (linea.cargando) estadoLinea = `<div class="vacio cargando">Buscando fondos…</div>`;
     else if (!linea.resultados.length && linea.pagina) estadoLinea = `<div class="vacio">No encontré nada. Prueba con otras palabras (en inglés suele haber más).</div>`;
@@ -516,7 +512,7 @@
   function secBarra() {
     const b = config.barra || {};
     const posiciones = [["arriba", "Arriba"], ["abajo", "Abajo"], ["izquierda", "Izquierda"], ["derecha", "Derecha"]];
-    return cabeza("Barra", "Windows 11 no deja mover su barra de tareas, así que Lienzo trae la suya: ponla en cualquier borde y elige cómo se ve. Las ventanas maximizadas la respetan.",
+    return cabeza("Barra", "Windows 11 no deja mover su barra de tareas, así que Lienzo trae la suya: ponla en cualquier borde y elige cómo se ve. Puede esconderse sola cuando maximizas una ventana.",
       `<label class="fila" style="border:0;padding:0;gap:12px"><span class="et">Barra de Lienzo</span>${interruptor("barra.activa", true, true)}</label>`) +
       (b.activa === false ? `<div class="tarjeta"><p class="nota" style="margin:0">La barra está apagada. Actívala con el interruptor de arriba.</p></div>` : `
       <div class="tarjeta"><h2>${I("barra")} Posición y forma</h2>
@@ -524,6 +520,7 @@
           `<button class="${p}${b.posicion === p ? " activo" : ""}" data-accion="posicion" data-p="${p}"><i></i><span>${t}</span></button>`).join("")}</div></div></div>
         ${fila("Estilo", "Islas: grupos separados · Continua: una sola barra · Minimal: sin fondo", segmentos("barra.estilo", [["islas", "Islas"], ["continua", "Continua"], ["minimal", "Minimal"]], "islas", "data-repintar"))}
         ${b.estilo === "continua" ? fila("Fondo", "El acrílico es el desenfoque de Windows 11", segmentos("barra.fondo", [["acrilico", "Acrílico"], ["transparente", "Transparente"], ["solido", "Sólido"]], "acrilico")) : ""}
+        ${fila("Esconderse sola", "Escondida, sale al dejar el ratón en el borde donde estaba", segmentos("barra.autoOcultar", [["no", "Nunca"], ["maximizada", "Con ventanas maximizadas"], ["siempre", "Siempre"]], "maximizada"))}
         ${fila("Flotante", "Separada de los bordes, con esquinas redondeadas", interruptor("barra.flotante", true))}
         ${fila("Grosor", "", rango("barra.grosor", 26, 64, 1, 38, "px"))}
         ${fila("Separación del borde", "Solo si es flotante", rango("barra.margen", 0, 24, 1, 8, "px"))}
@@ -551,8 +548,8 @@
   }
   function tarjetaBarraWindows() {
     return `<div class="tarjeta"><h2>${I("ventana")} Barra de tareas de Windows</h2>
-      <p class="nota">Si tu barra de Lienzo está abajo, lo mejor es ocultar la de Windows. Al cerrar Lienzo vuelve sola. Con el botón «Bandeja» de tu barra llegas a los iconos ocultos (Discord, Steam…).</p>
-      ${fila("Comportamiento", "", segmentos("barraWindows.modo", [["nativa", "Normal"], ["auto", "Auto-ocultar"], ["oculta", "Ocultarla"]], "auto"))}
+      <p class="nota">«Ocultarla» la esconde del todo: aunque Windows intente sacarla (tecla Win, notificaciones…) Lienzo la vuelve a esconder al instante. Al cerrar Lienzo vuelve sola, y si apagas la barra de Lienzo también. Con el botón «Bandeja» de tu barra llegas a los iconos ocultos (Discord, Steam…).</p>
+      ${fila("Comportamiento", "", segmentos("barraWindows.modo", [["nativa", "Normal"], ["auto", "Auto-ocultar"], ["oculta", "Ocultarla"]], "oculta"))}
       ${fila("Iconos de la barra de Windows", "Dónde van los iconos cuando se ve", segmentos("barraWindows.alineacion", [["no-tocar", "No cambiar"], ["izquierda", "Izquierda"], ["centro", "Centro"]], "no-tocar"))}
       ${fila("Búsqueda", "", segmentos("barraWindows.busqueda", [["no-tocar", "No cambiar"], ["oculta", "Ocultar"], ["icono", "Icono"], ["cuadro", "Cuadro"]], "no-tocar"))}
       ${fila("Vista de tareas", "El botón de los escritorios virtuales", segmentos("barraWindows.vistaTareas", SI_NO, "no-tocar"))}
@@ -883,7 +880,7 @@
     "abrir-carpeta"(el) { P.enviar("abrirCarpeta", { cual: el.dataset.cual }); },
     posicion(el) {
       cambiar("barra.posicion", el.dataset.p, true);
-      if (el.dataset.p === "abajo" && val("barraWindows.modo", "auto") === "nativa") aviso("Consejo: oculta la barra de Windows para que no choquen");
+      if (el.dataset.p === "abajo" && val("barraWindows.modo", "oculta") === "nativa") aviso("Consejo: oculta la barra de Windows para que no choquen");
       pintar();
     },
     "icono-inicio"(el) { config.barra.textoInicio = ""; cambiar("barra.iconoInicio", el.dataset.icono, true); pintar(); },
@@ -1027,7 +1024,7 @@
         <div class="pasos-fila">
           <div class="paso"><span class="n">2</span><div class="cuerpo"><b>¿Cómo te llamas?</b><input type="text" data-ruta="general.nombre" value="${esc(val("general.nombre", ""))}" placeholder="${esc(L.formato.capital(usuario) || "Tu nombre")}" style="min-width:0;width:100%"></div></div>
           <div class="paso"><span class="n">3</span><div class="cuerpo"><b>¿Ocultar los iconos?</b><label class="interruptor-fila"><input type="checkbox" class="interruptor" id="bv-iconos"><small>Luce más el fondo. Vuelven al cerrar Lienzo.</small></label></div></div>
-          <div class="paso"><span class="n">4</span><div class="cuerpo"><b>Barra de Windows</b>${segmentos("barraWindows.modo", [["nativa", "Dejarla"], ["auto", "Auto-ocultar"], ["oculta", "Ocultar"]], "auto")}</div></div>
+          <div class="paso"><span class="n">4</span><div class="cuerpo"><b>Barra de Windows</b>${segmentos("barraWindows.modo", [["nativa", "Dejarla"], ["auto", "Auto-ocultar"], ["oculta", "Ocultar"]], "oculta")}</div></div>
         </div>
       </div>
       <div class="botones"><span class="nota-pie">Vuelve aquí cuando quieras con el botón ${I("lienzo")} de tu barra.</span><button class="btn principal" data-cerrar>${I("check")} Empezar</button></div></div>`, "ancho");

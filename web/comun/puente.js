@@ -56,7 +56,7 @@
     }
     if (m.tipo === "pedirHerramientas") return setTimeout(() => P.emitir("herramientas", { ytdlp: false }), 50);
     if (m.tipo === "buscarFondos") {
-      const video = ["motionbgs", "desktophut", "moewalls", "youtube", "tiktok"].includes(m.fuente);
+      const video = ["motionbgs", "desktophut", "moewalls", "youtube"].includes(m.fuente);
       const resultados = Array.from({ length: 9 }, (_, i) => ({ id: m.fuente + i + "-" + m.pagina, nombre: (m.q || "Fondo") + " " + (i + 1),
         miniatura: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="hsl(${i * 40},55%,45%)"/></svg>`)}`,
         descarga: String(i), etiqueta: video ? "4K · video" : "3840×2160", credito: m.fuente, video }));

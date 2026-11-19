@@ -31,10 +31,12 @@ namespace Lienzo
             Barra = new Superficie("barra", cp) { SinActivar = true };
             Barra.Mensaje += AlMensaje;
             Barra.MensajeVentana += AlMensajeBarra;
-            RegistrarAppBar();
+            barraEscondida = barraAsomada = condicionEsconder = false;
+            if (ReservarEspacio()) RegistrarAppBar();
             AplicarEstiloBarra();
             PosicionarBarra();
             await Barra.Iniciar(Entorno, "barra.html", true);
+            IniciarAutoOcultar();
             // La barra es poca cosa: Chromium puede soltar cachés y memoria que no use.
             if (Barra != null && Barra.Web != null) Barra.Web.MemoryUsageTargetLevel = Microsoft.Web.WebView2.Core.CoreWebView2MemoryUsageTargetLevel.Low;
         }
@@ -42,6 +44,7 @@ namespace Lienzo
         public void CerrarBarra()
         {
             if (Barra == null) return;
+            PararAutoOcultar();
             QuitarAppBar();
             Barra.Cerrar();
             Barra = null;
@@ -93,9 +96,22 @@ namespace Lienzo
                 int reserva = grosor + margen * 2;
                 uint borde = Borde();
 
+                // Con auto-ocultar la barra no aparta las ventanas: se pone encima, dentro del área de trabajo
+                // (así no tapa la barra de Windows si esa sigue a la vista).
+                bool reservar = ReservarEspacio();
+                if (!reservar && appBarRegistrada)
+                {
+                    QuitarAppBar();
+                    mon = Monitor.Principal_() ?? mon;
+                    monitorBarra = mon;
+                    ProgramarPosicion(); // por si Windows tarda en devolver el espacio que reservábamos
+                }
+                else if (reservar && !appBarRegistrada) RegistrarAppBar();
+                var baseBarra = reservar ? mon.Area : mon.Trabajo;
+
                 var d = DatosAppBar();
                 d.uEdge = borde;
-                d.rc = new Nativo.RECT(mon.Area.Left, mon.Area.Top, mon.Area.Right, mon.Area.Bottom);
+                d.rc = new Nativo.RECT(baseBarra.Left, baseBarra.Top, baseBarra.Right, baseBarra.Bottom);
                 Recortar(ref d.rc, borde, reserva);
                 if (appBarRegistrada) Nativo.SHAppBarMessage(Nativo.ABM_QUERYPOS, ref d);
                 Recortar(ref d.rc, borde, reserva);
@@ -103,8 +119,8 @@ namespace Lienzo
 
                 var r = d.rc.ARect();
                 if (margen > 0) r.Inflate(-margen, -margen);
-                IntPtr orden = juegoPantallaCompleta ? Nativo.HWND_BOTTOM : Nativo.HWND_TOPMOST;
-                Barra.Mover(r, orden, Nativo.SWP_SHOWWINDOW);
+                IntPtr orden = juegoPantallaCompleta && reservar ? Nativo.HWND_BOTTOM : Nativo.HWND_TOPMOST;
+                Barra.Mover(r, orden, barraEscondida ? 0 : Nativo.SWP_SHOWWINDOW);
                 AplicarRedondeo(r, esc);
             }
             finally { posicionando = false; }
@@ -173,6 +189,7 @@ namespace Lienzo
                         ProgramarPosicion();
                         break;
                     case Nativo.ABN_FULLSCREENAPP:
+                        if (!ReservarEspacio()) break; // con auto-ocultar ya se esconde sola
                         // Un juego o video a pantalla completa: la barra se va al fondo para no taparlo.
                         juegoPantallaCompleta = m.LParam != IntPtr.Zero;
                         if (Barra != null)

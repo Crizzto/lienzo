@@ -31,6 +31,7 @@
     "iconoInicio": "luna",
     "textoInicio": "",
     "titulos": "activa",
+    "autoOcultar": "maximizada",
     "modulos": {
       "inicio": ["inicio", "apps"],
       "centro": ["reloj"],
@@ -38,7 +39,7 @@
     },
     "reloj": { "formato24": false, "segundos": false, "fecha": true }
   },
-  "barraWindows": { "modo": "auto", "alineacion": "no-tocar", "busqueda": "no-tocar", "vistaTareas": "no-tocar", "widgets": "no-tocar", "agrupar": "no-tocar", "esquina": "no-tocar" },
+  "barraWindows": { "modo": "oculta", "alineacion": "no-tocar", "busqueda": "no-tocar", "vistaTareas": "no-tocar", "widgets": "no-tocar", "agrupar": "no-tocar", "esquina": "no-tocar" },
   "bloques": [
     { "id": "saludo-1", "tipo": "saludo", "x": 0.765, "y": 0.07, "escala": 1, "opciones": {} },
     { "id": "reloj-1", "tipo": "reloj", "x": 0.765, "y": 0.13, "escala": 1, "opciones": { "estilo": "grande" } },

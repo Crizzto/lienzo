@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace Lienzo
 {
     /// <summary>
-    /// YouTube y TikTok con yt-dlp (github.com/yt-dlp/yt-dlp, libre y gratuito), como hace Lively Wallpaper.
+    /// Videos de YouTube con yt-dlp (github.com/yt-dlp/yt-dlp, libre y gratuito), como hace Lively Wallpaper.
     /// Lienzo lo descarga solo si tú se lo pides desde el panel, a %LOCALAPPDATA%\Lienzo\herramientas, y lo
     /// actualiza cada semana (YouTube cambia seguido y las versiones viejas dejan de funcionar).
     /// </summary>
@@ -104,10 +104,9 @@ namespace Lienzo
             }
         }
 
-        private static bool EsEnlace(string q, bool tiktok)
+        private static bool EsEnlace(string q)
         {
-            return tiktok ? Regex.IsMatch(q, @"^https://(www\.|vm\.|vt\.|m\.)?tiktok\.com/", RegexOptions.IgnoreCase)
-                          : Regex.IsMatch(q, @"^https://(www\.|m\.|music\.)?(youtube\.com|youtu\.be)/", RegexOptions.IgnoreCase);
+            return Regex.IsMatch(q, @"^https://(www\.|m\.|music\.)?(youtube\.com|youtu\.be)/", RegexOptions.IgnoreCase);
         }
 
         private static string Duracion(double seg)
@@ -121,34 +120,23 @@ namespace Lienzo
 
         /// <summary>
         /// YouTube: busca «tu búsqueda + live wallpaper» y deja solo lo que parece fondo (por título y duración, sin Shorts).
-        /// TikTok: sin cuenta no deja buscar, así que se usa la página del hashtag; también acepta un enlace directo.
+        /// También acepta un enlace directo a un video.
         /// </summary>
-        public static Dictionary<string, object> Buscar(string q, bool tiktok, int pagina)
+        public static Dictionary<string, object> Buscar(string q, int pagina)
         {
             ActualizarSiHaceFalta();
             string salida;
-            string fuente = tiktok ? "TikTok" : "YouTube";
-            if (EsEnlace(q, tiktok))
+            if (EsEnlace(q))
             {
-                if (Ejecutar("-J --no-playlist " + Comillas(q), null, 60000, out salida) != 0) throw new Exception("No pude leer ese enlace de " + fuente + ". " + salida);
+                if (Ejecutar("-J --no-playlist " + Comillas(q), null, 60000, out salida) != 0) throw new Exception("No pude leer ese enlace de YouTube. " + salida);
                 var v = Json.Objeto(salida);
-                return Json.Nuevo("resultados", new List<object> { Elemento(v, tiktok, Json.Texto(v, "webpage_url", q)) }, "ultima", true);
+                return Json.Nuevo("resultados", new List<object> { Elemento(v, Json.Texto(v, "webpage_url", q)) }, "ultima", true);
             }
-            if (q.Length == 0) q = tiktok ? "livewallpaper" : "anime";
+            if (q.Length == 0) q = "anime";
             int cuantos = 30 * pagina;
-            string args;
-            if (tiktok)
-            {
-                string tag = Regex.Replace(q.ToLowerInvariant(), @"[^\p{L}\p{N}_]", "");
-                args = "--flat-playlist -J --playlist-end " + cuantos + " " + Comillas("https://www.tiktok.com/tag/" + tag);
-            }
-            else
-            {
-                string busqueda = PalabrasFondo.IsMatch(q) ? q : q + " live wallpaper";
-                args = "--flat-playlist -J " + Comillas("ytsearch" + cuantos + ":" + busqueda);
-            }
-            if (Ejecutar(args, null, 90000, out salida) != 0)
-                throw new Exception(tiktok ? "TikTok no dejó ver ese hashtag sin una cuenta. Pega el enlace de un video (Compartir → Copiar enlace)." : "YouTube no respondió. " + salida);
+            string busqueda = PalabrasFondo.IsMatch(q) ? q : q + " live wallpaper";
+            string args = "--flat-playlist -J " + Comillas("ytsearch" + cuantos + ":" + busqueda);
+            if (Ejecutar(args, null, 90000, out salida) != 0) throw new Exception("YouTube no respondió. " + salida);
             var j = Json.Objeto(salida);
             var lista = new List<object>();
             foreach (var e in (Json.Lista(j, "entries") ?? new object[0]).OfType<Dictionary<string, object>>().Skip(30 * (pagina - 1)))
@@ -156,42 +144,39 @@ namespace Lienzo
                 string url = Json.Texto(e, "url", "");
                 string titulo = Json.Texto(e, "title", "");
                 double dur = Json.Numero(e, "duration", 0);
-                if (!tiktok)
-                {
-                    if (url.Contains("/shorts/")) continue;                 // verticales
-                    if (dur > 0 && (dur < 6 || dur > 3600)) continue;       // ni clips de segundos ni transmisiones de horas
-                    if (!PalabrasFondo.IsMatch(titulo)) continue;           // que parezca un fondo
-                    url = "https://www.youtube.com/watch?v=" + Json.Texto(e, "id", "");
-                }
-                lista.Add(Elemento(e, tiktok, url));
+                if (url.Contains("/shorts/")) continue;                 // verticales
+                if (dur > 0 && (dur < 6 || dur > 3600)) continue;       // ni clips de segundos ni transmisiones de horas
+                if (!PalabrasFondo.IsMatch(titulo)) continue;           // que parezca un fondo
+                url = "https://www.youtube.com/watch?v=" + Json.Texto(e, "id", "");
+                lista.Add(Elemento(e, url));
             }
             return Json.Nuevo("resultados", lista, "ultima", pagina >= 3 || lista.Count == 0);
         }
 
-        private static Dictionary<string, object> Elemento(Dictionary<string, object> e, bool tiktok, string url)
+        private static Dictionary<string, object> Elemento(Dictionary<string, object> e, string url)
         {
             string id = Json.Texto(e, "id", "");
-            string miniatura = tiktok ? Json.Texto(e, "thumbnail", "") : "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+            string miniatura = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
             if (miniatura.Length == 0)
             {
                 var ts = (Json.Lista(e, "thumbnails") ?? new object[0]).OfType<Dictionary<string, object>>().LastOrDefault();
                 if (ts != null) miniatura = Json.Texto(ts, "url", "");
             }
             string titulo = Json.Texto(e, "title", "");
-            if (titulo.Length == 0) titulo = Json.Texto(e, "description", tiktok ? "Video de TikTok" : "Video de YouTube");
+            if (titulo.Length == 0) titulo = Json.Texto(e, "description", "Video de YouTube");
             if (titulo.Length > 90) titulo = titulo.Substring(0, 90) + "…";
             string autor = Json.Texto(e, "channel", Json.Texto(e, "uploader", ""));
             string etiqueta = Duracion(Json.Numero(e, "duration", 0));
-            return Json.Nuevo("id", (tiktok ? "tt-" : "yt-") + id, "nombre", titulo, "miniatura", miniatura, "descarga", url,
-                "etiqueta", (etiqueta.Length > 0 ? etiqueta + " · " : "") + "video", "credito", (tiktok ? "TikTok" : "YouTube") + (autor.Length > 0 ? " · " + autor : ""), "video", true);
+            return Json.Nuevo("id", "yt-" + id, "nombre", titulo, "miniatura", miniatura, "descarga", url,
+                "etiqueta", (etiqueta.Length > 0 ? etiqueta + " · " : "") + "video", "credito", "YouTube" + (autor.Length > 0 ? " · " + autor : ""), "video", true);
         }
 
         /// <summary>Descarga solo la imagen (sin audio), en H.264 si se puede (lo decodifica la tarjeta gráfica) y hasta 1440p.</summary>
-        public static string Descargar(string url, string carpeta, string baseNombre, bool tiktok, Action<int> progreso)
+        public static string Descargar(string url, string carpeta, string baseNombre, Action<int> progreso)
         {
-            if (!EsEnlace(url, tiktok)) throw new Exception("enlace no válido");
+            if (!EsEnlace(url)) throw new Exception("enlace no válido");
             ActualizarSiHaceFalta();
-            string formato = tiktok ? "b[ext=mp4]/b" : "bv*[height<=1440][vcodec^=avc1]/bv*[height<=1440][ext=mp4]/bv*[height<=1440]/b[height<=1440]/b";
+            string formato = "bv*[height<=1440][vcodec^=avc1]/bv*[height<=1440][ext=mp4]/bv*[height<=1440]/b[height<=1440]/b";
             string plantilla = Path.Combine(carpeta, baseNombre + ".%(ext)s");
             int ultimo = -1;
             string salida;

@@ -12,14 +12,14 @@ namespace Lienzo
     /// <summary>
     /// Fondos en línea. La búsqueda y la descarga las hace C# (sin problemas de CORS); el panel solo muestra.
     ///   Imágenes: Wikimedia Commons, Wallhaven, Openverse y la colección de rices de github.com/dharmx/walls.
-    ///   Videos (fondos animados): MotionBGs, DesktopHut, MoeWalls, y YouTube/TikTok con yt-dlp.
+    ///   Videos (fondos animados): MotionBGs, DesktopHut, MoeWalls, y YouTube con yt-dlp.
     /// Las direcciones de descarga se arman aquí a partir de un id o una ruta: el panel nunca manda una URL arbitraria.
     /// </summary>
     internal partial class App
     {
         private const string AgenteWeb = "Lienzo/1.0 (fondos de escritorio)";
         private const string AgenteNavegador = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
-        private static readonly HashSet<string> FuentesVideo = new HashSet<string> { "motionbgs", "desktophut", "moewalls", "youtube", "tiktok" };
+        private static readonly HashSet<string> FuentesVideo = new HashSet<string> { "motionbgs", "desktophut", "moewalls", "youtube" };
         private const string RepoWalls = "dharmx/walls";
 
         static App()
@@ -143,8 +143,7 @@ namespace Lienzo
                         case "motionbgs": res = BuscarMotionBgs(q, semilla, pagina); break;
                         case "desktophut": res = BuscarDesktopHut(q, pagina); break;
                         case "moewalls": res = BuscarMoeWalls(q, pagina); break;
-                        case "youtube": res = Ytdlp.Buscar(q, false, pagina); break;
-                        case "tiktok": res = Ytdlp.Buscar(q, true, pagina); break;
+                        case "youtube": res = Ytdlp.Buscar(q, pagina); break;
                         default: res = BuscarWikimedia(q, orden, pagina); break;
                     }
                 }
@@ -375,8 +374,8 @@ namespace Lienzo
                     if (limpio.Length > 40) limpio = limpio.Substring(0, 40);
                     string baseNombre = limpio + "-" + DateTime.Now.ToString("yyMMddHHmmss");
                     string destino;
-                    if (fuente == "youtube" || fuente == "tiktok")
-                        destino = Ytdlp.Descargar(descarga, carpeta, baseNombre, fuente == "tiktok", progreso);
+                    if (fuente == "youtube")
+                        destino = Ytdlp.Descargar(descarga, carpeta, baseNombre, progreso);
                     else
                     {
                         string url = ResolverDescarga(fuente, descarga, calidad);
@@ -423,7 +422,7 @@ namespace Lienzo
             return thumb.Length > 0 && Json.Numero(info, "thumbwidth", 0) < Json.Numero(info, "width", 0) ? thumb : Json.Texto(info, "url", "");
         }
 
-        // ---------------- yt-dlp (YouTube y TikTok) ----------------
+        // ---------------- yt-dlp (YouTube) ----------------
 
         private void EnviarHerramientas(Superficie s)
         {
@@ -440,7 +439,7 @@ namespace Lienzo
                 EnUi(() =>
                 {
                     EnviarHerramientas(s);
-                    s.Enviar("aviso", Json.Nuevo("texto", error == null ? "yt-dlp listo: ya puedes buscar en YouTube y TikTok." : "No se pudo descargar yt-dlp: " + error));
+                    s.Enviar("aviso", Json.Nuevo("texto", error == null ? "yt-dlp listo: ya puedes buscar en YouTube." : "No se pudo descargar yt-dlp: " + error));
                 });
             });
         }

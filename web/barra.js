@@ -222,6 +222,8 @@
   }, { passive: true });
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+  // Auto-ocultar: Lienzo.exe avisa antes de esconder la ventana y al volver a mostrarla.
+  P.on("barraVisible", (m) => document.documentElement.classList.toggle("escondida", !m.visible));
   P.on("config", (m) => {
     config = m.config || {};
     L.tema.aplicar(config);
