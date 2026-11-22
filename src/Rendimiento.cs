@@ -74,6 +74,10 @@ namespace Lienzo
             Nativo.SYSTEM_POWER_STATUS p;
             bool bateria = Nativo.GetSystemPowerStatus(out p) && (p.ACLineStatus == 0 || p.SystemStatusFlag == 1);
             string modoBateria = Cfg("rendimiento.bateria", "reducir");
+            // «Mientras usas otra app»: no, bateria (solo desconectada) o siempre. Es lo que más ahorra en una laptop:
+            // un video de fondo es casi todo el gasto de Lienzo, y casi nadie lo mira mientras trabaja en otra ventana.
+            string modoFoco = Cfg("rendimiento.pausarConFoco", "bateria");
+            bool pausarPorFoco = modoFoco == "siempre" || (modoFoco == "bateria" && bateria);
             int estadoNotif;
             bool notifPantallaCompleta = Nativo.SHQueryUserNotificationState(out estadoNotif) == 0 &&
                 (estadoNotif == Nativo.QUNS_RUNNING_D3D_FULL_SCREEN || estadoNotif == Nativo.QUNS_PRESENTATION_MODE || estadoNotif == Nativo.QUNS_BUSY);
@@ -94,6 +98,7 @@ namespace Lienzo
                     if (completa && CfgBool("rendimiento.pausarPantallaCompleta", true)) motivo = "pantalla-completa";
                     else if (visible < 0.12 && CfgBool("rendimiento.pausarMaximizada", true)) motivo = "tapado";
                     else if (bateria && modoBateria == "pausar") motivo = "bateria";
+                    else if (pausarPorFoco && OtraAppEnPrimerPlano(mon.Area)) motivo = "foco";
                     else if (bateria && modoBateria == "reducir") reducir = true;
                 }
 
@@ -124,8 +129,9 @@ namespace Lienzo
                 }
 
                 // Si lleva un rato tapado del todo, se suspende el WebView (libera CPU y memoria por completo).
+                // Con «foco» no: el escritorio se sigue viendo alrededor de la ventana y suspender lo esconde.
                 DateTime desde;
-                if (motivo != null && motivo != "manual" && motivo != "bateria" && CfgBool("rendimiento.suspender", true) &&
+                if (motivo != null && motivo != "manual" && motivo != "bateria" && motivo != "foco" && CfgBool("rendimiento.suspender", true) &&
                     tapadoDesde.TryGetValue(f, out desde) && (DateTime.Now - desde).TotalSeconds > 20 && f.Visible)
                 {
                     SuspenderFondo(f);
@@ -147,6 +153,27 @@ namespace Lienzo
         {
             string e;
             return estadoFondo.TryGetValue(f, out e) ? e : "activo";
+        }
+
+        // Ventanas del propio Windows que no cuentan como «otra app»: el escritorio, la barra, Inicio, la búsqueda,
+        // Alt+Tab y la vista de tareas. Con ellas el fondo sigue animándose.
+        private static readonly HashSet<string> clasesDelEscritorio = new HashSet<string> {
+            "Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow",
+            "XamlExplorerHostIslandWindow", "MultitaskingViewFrame", "TaskSwitcherWnd", "ForegroundStaging",
+            "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland", "#32768",
+        };
+
+        /// <summary>¿Estás usando otra app en este monitor? (la ventana activa no es el escritorio ni de Lienzo)</summary>
+        private static bool OtraAppEnPrimerPlano(Rectangle mon)
+        {
+            IntPtr fg = Nativo.GetForegroundWindow();
+            if (fg == IntPtr.Zero || !Nativo.IsWindowVisible(fg) || Nativo.IsIconic(fg)) return false;
+            uint pid;
+            Nativo.GetWindowThreadProcessId(fg, out pid);
+            if (pid == pidPropio) return false; // la barra o el panel de Lienzo: ahí sí quieres ver el fondo
+            if (clasesDelEscritorio.Contains(Nativo.Clase(fg)) || Nativo.Oculta(fg)) return false;
+            var r = Nativo.Marco(fg);
+            return r.Ancho > 0 && r.Alto > 0 && r.Right > mon.Left && r.Left < mon.Right && r.Bottom > mon.Top && r.Top < mon.Bottom;
         }
 
         /// <summary>Fracción del monitor donde se ve el escritorio (0 = tapado del todo). También detecta pantalla completa.</summary>

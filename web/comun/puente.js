@@ -3,11 +3,36 @@
 (function () {
   "use strict";
   const L = (window.Lienzo = window.Lienzo || {});
-  const w = window.chrome && window.chrome.webview;
+  const VISTA = /[?&]vista=1\b/.test(location.search) && window.parent !== window;
+  // Windows: WebView2 (chrome.webview). Vista previa dentro del panel del celular: el panel hace de anfitrión.
+  // Android: la app inyecta window.LienzoNativo (y también en los iframes, por eso la vista va primero).
+  const w = (window.chrome && window.chrome.webview) || (VISTA ? adaptadorVista() : window.LienzoNativo ? adaptadorAndroid() : null);
   const oyentes = {};
+
+  // Android manda los mensajes llamando a window.__lienzoMensaje(objeto) con evaluateJavascript.
+  function adaptadorAndroid() {
+    const fns = [];
+    window.__lienzoMensaje = (m) => fns.forEach((f) => f({ data: m }));
+    return {
+      postMessage(m) { window.LienzoNativo.enviar(JSON.stringify(m)); },
+      addEventListener(t, f) { if (t === "message") fns.push(f); },
+    };
+  }
+
+  function adaptadorVista() {
+    return {
+      postMessage(m) { window.parent.postMessage({ lienzoDesdeVista: m }, "*"); },
+      addEventListener(t, f) {
+        if (t !== "message") return;
+        addEventListener("message", (e) => { if (e.source === window.parent && e.data && e.data.lienzoParaVista) f({ data: e.data.lienzoParaVista }); });
+      },
+    };
+  }
 
   const P = {
     real: !!w,
+    android: !!window.LienzoNativo || VISTA,
+    vista: VISTA,
     on(tipo, fn) { (oyentes[tipo] = oyentes[tipo] || []).push(fn); },
     emitir(tipo, datos) {
       (oyentes[tipo] || []).forEach((f) => {
@@ -56,7 +81,7 @@
     }
     if (m.tipo === "pedirHerramientas") return setTimeout(() => P.emitir("herramientas", { ytdlp: false }), 50);
     if (m.tipo === "buscarFondos") {
-      const video = ["motionbgs", "desktophut", "moewalls", "youtube"].includes(m.fuente);
+      const video = ["motionbgs", "desktophut", "moewalls", "wallpaperwaifu", "fondosanimados", "youtube"].includes(m.fuente);
       const resultados = Array.from({ length: 9 }, (_, i) => ({ id: m.fuente + i + "-" + m.pagina, nombre: (m.q || "Fondo") + " " + (i + 1),
         miniatura: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="hsl(${i * 40},55%,45%)"/></svg>`)}`,
         descarga: String(i), etiqueta: video ? "4K · video" : "3840×2160", credito: m.fuente, video }));

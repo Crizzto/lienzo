@@ -50,6 +50,8 @@
     ["motionbgs", "MotionBGs", "video", "Fondos animados en HD o 4K: anime, juegos, paisajes, lo-fi.", "rain, lofi, anime, car…"],
     ["desktophut", "DesktopHut", "video", "Fondos animados en alta calidad, de todo tipo.", "rain, space, anime, nature…"],
     ["moewalls", "MoeWalls", "video", "Muchísimos fondos animados de anime y videojuegos (calidad 720p).", "genshin, rain, night, cat…"],
+    ["wallpaperwaifu", "WallpaperWaifu", "video", "Fondos animados de anime, juegos, paisajes y pixel art, muchos en 2K y 4K (pesan más).", "rain, pixel, city, cyberpunk…"],
+    ["fondosanimados", "FondosAnimados", "video", "Página en español con +4,000 fondos en movimiento. Busca por sección o personaje; cada página de resultados es una sección. Los videos vienen de MEGA.", "anime, paisajes, coches, goku, naruto…"],
     ["youtube", "YouTube", "yt", "Busca videos de fondos (live wallpaper, loops, lo-fi…) y quita Shorts y videos que no parecen fondos. También puedes pegar un enlace.", "anime rain, lofi room… o pega un enlace"],
   ];
   const ORDENES_LINEA = {
@@ -703,6 +705,7 @@
       <div class="tarjeta"><h2>${I("pausa")} Pausar automáticamente</h2>
         ${fila("Cuando las ventanas tapan el fondo", "Por ejemplo, con una ventana maximizada", interruptor("rendimiento.pausarMaximizada", true))}
         ${fila("Con juegos o videos en pantalla completa", "", interruptor("rendimiento.pausarPantallaCompleta", true))}
+        ${fila("Mientras usas otra app", "Lo que más ahorra: el fondo se queda quieto mientras trabajas y se anima en cuanto vuelves al escritorio", segmentos("rendimiento.pausarConFoco", [["no", "Seguir"], ["bateria", "Con batería"], ["siempre", "Siempre"]], "bateria"))}
         ${fila("Con batería", "", segmentos("rendimiento.bateria", [["nada", "Seguir igual"], ["reducir", "Bajar a 15 FPS"], ["pausar", "Pausar"]], "reducir"))}
         ${fila("Suspender si lleva rato tapado", "Libera también la memoria del fondo (puede verse un parpadeo al volver)", interruptor("rendimiento.suspender", false))}
         ${fila("Fondo solo en el monitor principal", "Útil si tienes dos pantallas", interruptor("rendimiento.soloPrincipal", false))}</div>
@@ -712,7 +715,7 @@
     const el = document.getElementById("estado-rend");
     if (!el) return;
     const e = estado.estadoFondo || "activo";
-    const motivos = { manual: "Lo pausaste tú", tapado: "Hay ventanas tapando el fondo", "pantalla-completa": "Hay un juego o video en pantalla completa", bloqueo: "La pantalla está bloqueada", bateria: "Ahorro por batería", pantalla: "La pantalla está apagada" };
+    const motivos = { manual: "Lo pausaste tú", tapado: "Hay ventanas tapando el fondo", foco: "Estás usando otra app","pantalla-completa": "Hay un juego o video en pantalla completa", bloqueo: "La pantalla está bloqueada", bateria: "Ahorro por batería", pantalla: "La pantalla está apagada" };
     el.innerHTML = e.startsWith("pausa") ? `<span class="punto pausa"></span>En pausa<small>${esc(motivos[e.split(":")[1]] || "")} · gasto casi nulo</small>`
       : e === "reducido" ? `<span class="punto"></span>Activo en modo ahorro<small>Con batería se limita a 15 FPS</small>`
       : `<span class="punto"></span>Activo<small>${estado.fondos || 1} fondo(s) · escritorio ${esc(estado.escritorio || "")}</small>`;

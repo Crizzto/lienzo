@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Lienzo</title>
+<link rel="stylesheet" href="comun/tema.css">
+<link rel="stylesheet" href="movil.css">
+</head>
+<body>
+<header class="cabecera">
+  <span class="marca" aria-hidden="true"></span>
+  <div class="titulos"><b>Lienzo</b><span id="subtitulo">Tu celular, como un rice</span></div>
+  <span class="chip-estado" id="estado" hidden></span>
+</header>
+
+<section class="escenario" id="escenario">
+  <button class="telefono" id="telefono" aria-label="Ver la vista previa en grande">
+    <iframe id="vista" src="escritorio.html?vista=1&amp;principal=1" title="Vista previa" tabindex="-1"></iframe>
+  </button>
+  <div class="lado">
+    <span class="eyebrow">Ahora</span>
+    <h1 id="nombre-tema">—</h1>
+    <p id="detalle-tema" class="tenue"></p>
+    <button class="btn principal" id="poner"></button>
+    <p class="nota" id="nota-poner"></p>
+  </div>
+</section>
+
+<main id="contenido"></main>
+
+<nav class="pestanas" id="pestanas">
+  <button data-pestana="temas"><span class="ic-caja" data-icono="varita"></span>Temas</button>
+  <button data-pestana="fondo"><span class="ic-caja" data-icono="imagen"></span>Fondo</button>
+  <button data-pestana="bloques"><span class="ic-caja" data-icono="bloques"></span>Bloques</button>
+  <button data-pestana="colores"><span class="ic-caja" data-icono="paleta"></span>Colores</button>
+  <button data-pestana="ajustes"><span class="ic-caja" data-icono="ajustes"></span>Ajustes</button>
+</nav>
+
+<div class="pantalla-completa" id="grande" hidden>
+  <iframe id="vista-grande" title="Vista previa en grande" tabindex="-1"></iframe>
+  <button class="cerrar-grande" id="cerrar-grande" aria-label="Cerrar"></button>
+</div>
+
+<div class="aviso" id="aviso" role="status" hidden></div>
+
+<script src="comun/puente.js"></script>
+<script src="comun/tema.js"></script>
+<script src="comun/iconos.js"></script>
+<script src="comun/escenas.js"></script>
+<script src="comun/rices.js"></script>
+<script src="comun/movil.js"></script>
+<script src="escenas/indice.js"></script>
+<script src="bloques/motor.js"></script>
+<script src="bloques/indice.js"></script>
+<script src="movil.js"></script>
+</body>
+</html>

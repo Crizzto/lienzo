@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lienzo</string>
+    <string name="descripcion_fondo">Escenas animadas, reloj, música y letras en tu fondo, con los colores de tu rice.</string>
+    <string name="musica_servicio">Lienzo · música en el fondo</string>
+</resources>

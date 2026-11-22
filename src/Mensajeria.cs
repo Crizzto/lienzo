@@ -354,7 +354,7 @@ namespace Lienzo
             int codigo = m.WParam.ToInt32() & 0x7FFF;
             long h = m.LParam.ToInt64();
             if (m.WParam.ToInt32() == Nativo.HSHELL_FLASH) ventanasAtencion.Add(h);
-            else if (codigo == Nativo.HSHELL_WINDOWACTIVATED) ventanasAtencion.Remove(h);
+            else if (codigo == Nativo.HSHELL_WINDOWACTIVATED) { ventanasAtencion.Remove(h); RevisarRendimiento(); } // pausa por «otra app» al instante
             else if (codigo == Nativo.HSHELL_WINDOWDESTROYED) ventanasAtencion.Remove(h);
             ProgramarVentanas();
         }

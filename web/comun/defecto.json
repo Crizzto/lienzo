@@ -53,6 +53,7 @@
     "pausarMaximizada": true,
     "pausarPantallaCompleta": true,
     "bateria": "reducir",
+    "pausarConFoco": "bateria",
     "soloPrincipal": false,
     "suspender": false
   },

@@ -166,6 +166,13 @@
     if (fondo.tipo === "html" && fondo.el) fondo.el.contentWindow.postMessage({ tipo: "lienzo-mouse", x: m.x, y: m.y }, "*");
   });
 
+  // Android: al deslizar entre las páginas de la pantalla de inicio (x de 0 a 1) el fondo se mueve un poco.
+  P.on("desplazar", (m) => {
+    if (fondo.motor) fondo.motor.ponerMouse(m.x, m.y);
+    parallax.x = m.x; parallax.y = m.y;
+    if (parallax.fuerza) aplicarParallax();
+  });
+
   function avisarEscenaPropia() {
     if (fondo.tipo !== "html" || !fondo.el) return;
     const w = fondo.el.contentWindow;
@@ -357,8 +364,11 @@
   }));
 
   // ---------------- Configuración ----------------
+  if (P.android) document.body.classList.add("movil");
   P.on("config", (m) => {
     config = m.config || {};
+    // En el celular, si aún no abriste la app (pusiste el fondo desde los ajustes de Android), llega la de fábrica.
+    if (P.android && !config.movil && L.movil) config = L.movil.adaptar(config);
     L.tema.aplicar(config);
     if (EDITANDO && !edicion.lista) edicion.empezar(config.bloques || []);
     ponerFondo();

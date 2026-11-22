@@ -35,7 +35,7 @@ Lienzo.bloque({
       const usuario = (f.usuario || "yo").toLowerCase(), equipo = (f.equipo || "lienzo").toLowerCase();
       const filas = [
         ["SO", `${f.so || "Windows"}${f.version ? " " + f.version : ""}`],
-        ["Kernel", f.compilacion ? `NT 10.0.${f.compilacion}` : ""],
+        ["Kernel", f.kernel || (f.compilacion ? `NT 10.0.${f.compilacion}` : "")],
         ["Encendido", s.encendido ? F.duracion(s.encendido) : ""],
         ["Resolución", f.resolucion ? `${f.resolucion}${f.escala ? " @" + f.escala + "%" : ""}` : ""],
         ["Shell", `Lienzo ${f.lienzo || ""}`.trim()],

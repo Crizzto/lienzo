@@ -4,6 +4,7 @@
 //   node build.js --solo-web  → solo copia web/ a dist/ (para probar cambios de HTML/CSS/JS sin recompilar)
 //   node build.js --instalador → además arma publicar/Lienzo-Instalador-<versión>.exe (un solo archivo para subir a GitHub)
 //   node build.js --solo-instalador → rearma solo el instalador con lo que ya está en dist/
+//   node build.js --android [--instalar] → publicar/Lienzo-<versión>.apk (y lo instala por USB con adb)
 "use strict";
 const fs = require("fs"), path = require("path"), https = require("https");
 const { execFileSync, spawn, spawnSync } = require("child_process");
@@ -139,8 +140,57 @@ function instalador() {
   console.log(`Instalador: publicar\\${path.basename(salida)} (${mb} MB)`);
 }
 
+// ---------------- Android ----------------
+// Necesita el SDK de Android (lo instala Android Studio, o solo las «command line tools") y un JDK 17 o más nuevo.
+function sdkAndroid() {
+  const opciones = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT,
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Android", "Sdk")].filter(Boolean);
+  const sdk = opciones.find((d) => fs.existsSync(path.join(d, "platforms")));
+  if (!sdk) throw new Error("No encontré el SDK de Android. Instala Android Studio (o pon ANDROID_HOME).");
+  return sdk;
+}
+
+function jdk() {
+  if (process.env.JAVA_HOME && fs.existsSync(process.env.JAVA_HOME)) return process.env.JAVA_HOME;
+  const pf = process.env.ProgramFiles || "C:\\Program Files";
+  const bases = [path.join(pf, "Android", "Android Studio", "jbr")];
+  for (const raiz of [path.join(pf, "Java"), path.join(pf, "Eclipse Adoptium"), path.join(pf, "Microsoft")]) {
+    if (!fs.existsSync(raiz)) continue;
+    fs.readdirSync(raiz).filter((d) => /^jdk-?(1[7-9]|[2-9]\d)/.test(d)).sort().reverse().forEach((d) => bases.push(path.join(raiz, d)));
+  }
+  return bases.find((d) => fs.existsSync(path.join(d, "bin", "java.exe"))) || "";
+}
+
+function android() {
+  const raiz = path.join(dir, "android");
+  const sdk = sdkAndroid();
+  fs.writeFileSync(path.join(raiz, "local.properties"), "sdk.dir=" + sdk.replace(/\\/g, "\\\\").replace(/:/g, "\\:") + "\n");
+  const env = Object.assign({}, process.env, { ANDROID_HOME: sdk });
+  const java = jdk();
+  if (java) env.JAVA_HOME = java;
+  console.log("Compilando el APK de Android (la primera vez Gradle baja lo que necesita)…");
+  const gradlew = path.join(raiz, process.platform === "win32" ? "gradlew.bat" : "gradlew");
+  // gradlew.bat necesita la consola de Windows (shell); la orden va completa en un texto para que Node no avise.
+  const r = spawnSync(`"${gradlew}" assembleRelease --console=plain -q`, { cwd: raiz, env, stdio: "inherit", shell: true });
+  if (r.status !== 0) throw new Error("Gradle no pudo compilar el APK");
+  const apk = path.join(raiz, "app", "build", "outputs", "apk", "release", "app-release.apk");
+  fs.mkdirSync(publicar, { recursive: true });
+  const salida = path.join(publicar, `Lienzo-${version()}.apk`);
+  fs.copyFileSync(apk, salida);
+  console.log(`APK: publicar\\${path.basename(salida)} (${(fs.statSync(salida).size / 1048576).toFixed(1)} MB)`);
+  if (args.includes("--instalar")) {
+    // Con el teléfono conectado por USB (y la depuración USB activada en las opciones de desarrollador).
+    const adb = path.join(sdk, "platform-tools", process.platform === "win32" ? "adb.exe" : "adb");
+    const i = spawnSync(adb, ["install", "-r", salida], { stdio: "inherit" });
+    if (i.status !== 0) throw new Error("adb no pudo instalar el APK (¿está conectado el teléfono?)");
+    spawnSync(adb, ["shell", "am", "start", "-n", "app.lienzo/.PanelActivity"], { stdio: "inherit" });
+  }
+}
+
 async function principal() {
   fs.mkdirSync(dist, { recursive: true });
+  // node build.js --android [--instalar] → publicar/Lienzo-<versión>.apk (y lo instala en el teléfono conectado).
+  if (args.includes("--android")) { android(); return; }
   if (args.includes("--solo-web")) { copiarWeb(); console.log("web/ copiada a dist/"); return; }
   // Rearma solo el instalador con lo que ya hay en dist/ (sin cerrar Lienzo ni recompilarlo).
   if (args.includes("--solo-instalador")) { icono(); instalador(); return; }

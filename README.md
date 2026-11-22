@@ -68,7 +68,7 @@ Para usarlo:
   - un color sólido.
   - **Fondos en línea** (Fondo → En línea). Un clic y se descarga a tu biblioteca, se aplica y los colores salen solos:
     - **Imágenes:** colección de rices de GitHub (`dharmx/walls`: nord, gruvbox, anime…), Wikimedia Commons y Openverse (licencias libres) y Wallhaven (arte y anime, solo contenido apto).
-    - **Fondos animados (videos):** MotionBGs (HD o 4K), DesktopHut y MoeWalls (anime, 720p).
+    - **Fondos animados (videos):** MotionBGs (HD o 4K), DesktopHut, MoeWalls (anime, 720p), WallpaperWaifu (2K/4K) y FondosAnimados.com (en español; descarga y descifra los videos de MEGA).
     - **YouTube** con [yt-dlp](https://github.com/yt-dlp/yt-dlp): Lienzo lo descarga solo si pulsas el botón y lo actualiza cada semana. Busca fondos y quita Shorts y videos que no lo parecen; también puedes pegar un enlace. Solo para uso personal.
   - **Transiciones** al cambiar de fondo: fundido, círculo (sale desde el cursor), barrido, zoom o persianas.
   - Efectos para cualquier fondo: oscurecer, viñeta, saturación, brillo, grano, desenfoque y parallax con el ratón.

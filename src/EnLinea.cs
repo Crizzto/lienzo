@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -12,14 +13,14 @@ namespace Lienzo
     /// <summary>
     /// Fondos en línea. La búsqueda y la descarga las hace C# (sin problemas de CORS); el panel solo muestra.
     ///   Imágenes: Wikimedia Commons, Wallhaven, Openverse y la colección de rices de github.com/dharmx/walls.
-    ///   Videos (fondos animados): MotionBGs, DesktopHut, MoeWalls, y YouTube con yt-dlp.
+    ///   Videos (fondos animados): MotionBGs, DesktopHut, MoeWalls, WallpaperWaifu, FondosAnimados (videos en MEGA) y YouTube con yt-dlp.
     /// Las direcciones de descarga se arman aquí a partir de un id o una ruta: el panel nunca manda una URL arbitraria.
     /// </summary>
     internal partial class App
     {
         private const string AgenteWeb = "Lienzo/1.0 (fondos de escritorio)";
         private const string AgenteNavegador = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
-        private static readonly HashSet<string> FuentesVideo = new HashSet<string> { "motionbgs", "desktophut", "moewalls", "youtube" };
+        private static readonly HashSet<string> FuentesVideo = new HashSet<string> { "motionbgs", "desktophut", "moewalls", "wallpaperwaifu", "fondosanimados", "youtube" };
         private const string RepoWalls = "dharmx/walls";
 
         static App()
@@ -60,7 +61,7 @@ namespace Lienzo
         /// Descarga con tope de tamaño, avisando el progreso (0-100), y comprueba que el contenido sea del tipo esperado:
         /// "imagen" (JPEG, PNG, WebP), "video" (MP4, WebM) o "exe".
         /// </summary>
-        internal static void BajarArchivo(string url, string destino, long maximo, string tipo, Action<int> progreso)
+        internal static void BajarArchivo(string url, string destino, long maximo, string tipo, Action<int> progreso, Action<byte[], int> transformar = null)
         {
             var req = Pedido(url, true);
             req.Timeout = 30000;
@@ -82,6 +83,7 @@ namespace Lienzo
                         {
                             total += n;
                             if (total > maximo) throw new Exception("el archivo pesa demasiado");
+                            if (transformar != null) transformar(buf, n);
                             salida.Write(buf, 0, n);
                             if (progreso != null && esperado > 0)
                             {
@@ -143,6 +145,8 @@ namespace Lienzo
                         case "motionbgs": res = BuscarMotionBgs(q, semilla, pagina); break;
                         case "desktophut": res = BuscarDesktopHut(q, pagina); break;
                         case "moewalls": res = BuscarMoeWalls(q, pagina); break;
+                        case "wallpaperwaifu": res = BuscarWallpaperWaifu(q, pagina); break;
+                        case "fondosanimados": res = BuscarFondosAnimados(q, semilla, pagina); break;
                         case "youtube": res = Ytdlp.Buscar(q, pagina); break;
                         default: res = BuscarWikimedia(q, orden, pagina); break;
                     }
@@ -314,6 +318,149 @@ namespace Lienzo
             return Json.Nuevo("resultados", lista, "ultima", lista.Count == 0);
         }
 
+        private Dictionary<string, object> BuscarWallpaperWaifu(string q, int pagina)
+        {
+            string url = "https://wallpaperwaifu.com/" + (pagina > 1 ? "page/" + pagina + "/" : "") + (q.Length > 0 ? "?s=" + Url(q) : "");
+            string html;
+            try { html = BajarTexto(url, true); }
+            catch (WebException ex)
+            {
+                // Pasada la última página, WordPress responde 404.
+                var r = ex.Response as HttpWebResponse;
+                if (r != null && r.StatusCode == HttpStatusCode.NotFound) return Json.Nuevo("resultados", new List<object>(), "ultima", true);
+                throw;
+            }
+            var lista = new List<object>();
+            var vistos = new HashSet<string>();
+            foreach (Match mt in Regex.Matches(html, @"<a href=""(https://wallpaperwaifu\.com/[a-z0-9-]+/[a-z0-9-]+-\d+/)"" title=""([^""]*)""[^>]*>\s*<img[^>]*?src=""(https://[^""]+)""", RegexOptions.Singleline))
+            {
+                if (!vistos.Add(mt.Groups[1].Value)) continue;
+                string nombre = Regex.Replace(Html(mt.Groups[2].Value), @"\s*live wallpaper\s*$", "", RegexOptions.IgnoreCase);
+                lista.Add(Item("ww-" + Regex.Match(mt.Groups[1].Value, @"-(\d+)/$").Groups[1].Value, nombre, mt.Groups[3].Value, mt.Groups[1].Value, "Video", "WallpaperWaifu", true));
+            }
+            return Json.Nuevo("resultados", lista, "ultima", lista.Count == 0);
+        }
+
+        // FondosAnimados.com (en español) no tiene buscador: cada sección (anime, paisajes, goku…) es una página del mapa del sitio.
+        // Se buscan las palabras en esas direcciones y cada "página" de resultados es una sección.
+        private static List<string> seccionesFa;
+        private static DateTime seccionesFaHora;
+
+        private static string SinAcentos(string s)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in (s ?? "").ToLowerInvariant().Normalize(NormalizationForm.FormD))
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark) sb.Append(c);
+            return sb.ToString();
+        }
+
+        private Dictionary<string, object> BuscarFondosAnimados(string q, string semilla, int pagina)
+        {
+            if (seccionesFa == null || (DateTime.Now - seccionesFaHora).TotalHours > 6)
+            {
+                seccionesFa = Regex.Matches(BajarTexto("https://fondosanimados.com/sitemap-0.xml", true), @"<loc>https://fondosanimados\.com/([a-z0-9/-]*)</loc>")
+                    .Cast<Match>().Select(x => x.Groups[1].Value)
+                    .Where(p => p.Length > 0 && !Regex.IsMatch(p, @"^(como-|contacto|aviso|politica|privacidad|cookies|terminos|wallpaper-engine|lively)")).Distinct().ToList();
+                seccionesFaHora = DateTime.Now;
+            }
+            var palabras = SinAcentos(q).Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            List<string> paginas;
+            int s = 0;
+            if (palabras.Length == 0)
+            {
+                // Sin búsqueda: la portada (los destacados) y luego secciones al azar, estables entre páginas gracias a la semilla.
+                if (!int.TryParse(semilla, out s)) s = Environment.TickCount;
+                var azar = new Random(s);
+                paginas = new[] { "" }.Concat(seccionesFa.OrderBy(x => azar.Next())).ToList();
+            }
+            else
+            {
+                paginas = seccionesFa.Where(p => { string t = p.Replace('-', ' ').Replace('/', ' '); return palabras.All(t.Contains); })
+                    // Primero las que coinciden con el nombre exacto de la sección, luego las secciones generales y al final los personajes.
+                    .OrderBy(p => palabras.Any(w => p.TrimEnd('/').Split('/').Last() == w) ? 0 : 1).ThenBy(p => p.Count(c => c == '/')).ThenBy(p => p.Length).ToList();
+                if (paginas.Count == 0) throw new Exception("FondosAnimados no tiene una sección con ese nombre. Prueba con: anime, paisajes, coches, videojuegos, goku, naruto…");
+            }
+            if (pagina > paginas.Count) return Json.Nuevo("resultados", new List<object>(), "ultima", true);
+            string seccion = paginas[pagina - 1];
+            string html = BajarTexto("https://fondosanimados.com/" + seccion, true);
+            var lista = new List<object>();
+            var vistos = new HashSet<string>();
+            foreach (Match mt in Regex.Matches(html, @"<h2>([^<]+)</h2>\s*<div class=""wv-wallpaper""((?:(?!<h2).)*)", RegexOptions.Singleline))
+            {
+                string bloque = mt.Groups[2].Value;
+                var mega = Regex.Match(bloque, @"href=""https://mega\.nz/file/([\w-]{8})#([\w-]{43})""[^>]*>[^<]*16:9");
+                var img = Regex.Match(bloque, @"src=""(/uploads/[\w/.-]+\.(?:webp|jpe?g|png))""");
+                if (!mega.Success || !vistos.Add(mega.Groups[1].Value)) continue;
+                string nombre = Regex.Replace(Html(mt.Groups[1].Value), @"\s+[-–]\s+Fondo.*$", "", RegexOptions.IgnoreCase);
+                lista.Add(Item("fa-" + mega.Groups[1].Value, nombre, img.Success ? "https://fondosanimados.com" + img.Groups[1].Value : "",
+                    mega.Groups[1].Value + "#" + mega.Groups[2].Value, "1080p · video", "FondosAnimados.com" + (seccion.Length > 0 ? " · " + seccion.TrimEnd('/') : ""), true));
+            }
+            return Json.Nuevo("resultados", lista, "ultima", pagina >= paginas.Count, "semilla", s != 0 ? s.ToString() : semilla);
+        }
+
+        // ---------------- MEGA ----------------
+        // Los enlaces públicos de MEGA (mega.nz/file/ID#LLAVE) llevan el archivo cifrado con AES-128 en modo CTR;
+        // la llave va en el enlace, así que se descifra mientras se descarga.
+
+        private static byte[] Base64Url(string s)
+        {
+            s = s.Replace('-', '+').Replace('_', '/');
+            return Convert.FromBase64String(s + new string('=', (4 - s.Length % 4) % 4));
+        }
+
+        /// <summary>Pide a MEGA la dirección temporal del archivo y prepara el descifrado.</summary>
+        private static string ResolverMega(string enlace, out Action<byte[], int> descifrar)
+        {
+            var mt = Regex.Match(enlace, @"^([\w-]{8})#([\w-]{43})$");
+            if (!mt.Success) throw new Exception("video no válido");
+            byte[] k = Base64Url(mt.Groups[2].Value);
+            if (k.Length != 32) throw new Exception("video no válido");
+            var req = Pedido("https://g.api.mega.co.nz/cs?id=" + new Random().Next(1, int.MaxValue), false);
+            req.Method = "POST";
+            req.ContentType = "application/json";
+            byte[] cuerpo = Encoding.UTF8.GetBytes("[{\"a\":\"g\",\"g\":1,\"ssl\":1,\"p\":\"" + mt.Groups[1].Value + "\"}]");
+            using (var e = req.GetRequestStream()) e.Write(cuerpo, 0, cuerpo.Length);
+            string texto;
+            using (var r = req.GetResponse())
+            using (var lector = new StreamReader(r.GetResponseStream(), Encoding.UTF8)) texto = lector.ReadToEnd();
+            object leido = Json.Leer(texto);
+            var lista = leido as System.Collections.IList;
+            object primero = lista != null && lista.Count > 0 ? lista[0] : leido;
+            var info = primero as Dictionary<string, object>;
+            if (info == null)
+            {
+                double codigo = 0;
+                try { codigo = Convert.ToDouble(primero); } catch { }
+                throw new Exception(codigo == -9 || codigo == -16 ? "el video ya no está en MEGA" : codigo == -17 || codigo == -4 ? "MEGA limitó las descargas por hoy; prueba más tarde" : "MEGA no respondió (" + codigo + ")");
+            }
+            string url = Json.Texto(info, "g", "");
+            if (!url.StartsWith("https://")) throw new Exception("MEGA no dio la dirección del video");
+            var llave = new byte[16];
+            var contador = new byte[16];
+            for (int i = 0; i < 16; i++) llave[i] = (byte)(k[i] ^ k[i + 16]);
+            Array.Copy(k, 16, contador, 0, 8);
+            var aes = Aes.Create();
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
+            var cifrador = aes.CreateEncryptor(llave, null);
+            var flujo = new byte[16];
+            int usado = 16;
+            descifrar = (buf, n) =>
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    if (usado == 16)
+                    {
+                        cifrador.TransformBlock(contador, 0, 16, flujo, 0);
+                        for (int j = 15; j >= 0 && ++contador[j] == 0; j--) { }
+                        usado = 0;
+                    }
+                    buf[i] ^= flujo[usado++];
+                }
+            };
+            return url;
+        }
+
         // ---------------- Descargar y usar ----------------
 
         /// <summary>De lo que mandó el panel (un id, una ruta o la página del fondo) a la dirección real del archivo.</summary>
@@ -352,6 +499,13 @@ namespace Lienzo
                         if (!mt.Success) throw new Exception("no encontré el video en la página");
                         return "https://moewalls.com" + mt.Value;
                     }
+                case "wallpaperwaifu":
+                    {
+                        if (!Regex.IsMatch(descarga, @"^https://wallpaperwaifu\.com/[a-z0-9-]+/[a-z0-9-]+-\d+/$")) throw new Exception("video no válido");
+                        var mt = Regex.Match(BajarTexto(descarga, true), @"id=""wf-download""[^>]*?data-url=""([\w%.+/=-]+)""");
+                        if (!mt.Success) throw new Exception("no encontré el video en la página");
+                        return "https://go.wallpaperwaifu.com/download.php?video=" + mt.Groups[1].Value;
+                    }
             }
             throw new Exception("fuente desconocida");
         }
@@ -378,12 +532,13 @@ namespace Lienzo
                         destino = Ytdlp.Descargar(descarga, carpeta, baseNombre, progreso);
                     else
                     {
-                        string url = ResolverDescarga(fuente, descarga, calidad);
+                        Action<byte[], int> descifrar = null;
+                        string url = fuente == "fondosanimados" ? ResolverMega(descarga, out descifrar) : ResolverDescarga(fuente, descarga, calidad);
                         string ext = Path.GetExtension(new Uri(url).AbsolutePath).ToLowerInvariant();
                         if (video) { if (ext != ".webm") ext = ".mp4"; }
                         else if (ext != ".png" && ext != ".webp") ext = ".jpg";
                         destino = Path.Combine(carpeta, baseNombre + ext);
-                        BajarArchivo(url, destino, video ? 400L * 1024 * 1024 : 60L * 1024 * 1024, video ? "video" : "imagen", progreso);
+                        BajarArchivo(url, destino, video ? 400L * 1024 * 1024 : 60L * 1024 * 1024, video ? "video" : "imagen", progreso, descifrar);
                     }
                     // Windows no siempre sabe hacer la miniatura de un video (WebM): se usa la del sitio, convertida a JPG.
                     if (video && miniatura.StartsWith("https://"))
